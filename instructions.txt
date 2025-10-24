@@ -1,0 +1,19 @@
+git clone https://github.com/valsuite-contest/contest-backend.git
+cd contest-backend
+npm install
+createdb contest_db
+cp .env.example .env
+npm run prisma:generate
+npm run prisma:migrate
+#this is necessary for the testing acc for now
+npm run seed
+npm run dev
+
+Server runs at: `http://localhost:3000`
+
+
+Check Health with
+
+curl http://localhost:3000/health
+
+{"status":"ok","timestamp":"..."}

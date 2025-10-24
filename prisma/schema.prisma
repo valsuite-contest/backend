@@ -1,0 +1,580 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  username      String    @unique
+  email         String    @unique
+  passwordHash  String
+  displayName   String?
+  lastLogin     DateTime?
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  roles         UserRole[]
+  teams         TeamMember[]
+  sessions      UserSession[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  
+  @@map("users")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  role      Role
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, role])
+  @@map("user_roles")
+}
+
+enum Role {
+  TEAM
+  JUDGE
+  ADMIN
+  SCOREBOARD_VIEWER
+  GUEST
+}
+
+model UserSession {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_sessions")
+}
+
+model Team {
+  id           String     @id @default(uuid())
+  name         String
+  affiliation  String?
+  institution  String?
+  siteId       String?
+  contactInfo  String?
+  status       TeamStatus @default(REGISTERED)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  
+  site          Site?          @relation(fields: [siteId], references: [id])
+  members       TeamMember[]
+  submissions   Submission[]
+  clarifications Clarification[] @relation("TeamClarifications")
+  scores        Score[]
+  awards        TeamAward[]
+  
+  @@map("teams")
+}
+
+enum TeamStatus {
+  REGISTERED
+  ACTIVE
+  DISQUALIFIED
+  INACTIVE
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  teamId    String
+  userId    String?
+  name      String
+  createdAt DateTime @default(now())
+  
+  team Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id])
+  
+  @@map("team_members")
+}
+
+model Site {
+  id            String     @id @default(uuid())
+  name          String
+  location      String?
+  serverAddress String?
+  timezone      String?
+  status        SiteStatus @default(DISCONNECTED)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  
+  teams       Team[]
+  submissions Submission[]
+  syncExports SyncExport[] @relation("OriginSite")
+  syncImports SyncImport[]
+  
+  @@map("sites")
+}
+
+enum SiteStatus {
+  CONNECTED
+  DISCONNECTED
+  SYNCING
+}
+
+model SyncExport {
+  id          String   @id @default(uuid())
+  originSiteId String
+  timestamp   DateTime @default(now())
+  dataPackage Json
+  status      String
+  
+  originSite Site @relation("OriginSite", fields: [originSiteId], references: [id])
+  
+  @@map("sync_exports")
+}
+
+model SyncImport {
+  id          String   @id @default(uuid())
+  targetSiteId String
+  timestamp   DateTime @default(now())
+  dataPackage Json
+  status      String
+  
+  targetSite Site @relation(fields: [targetSiteId], references: [id])
+  
+  @@map("sync_imports")
+}
+
+model Contest {
+  id              String        @id @default(uuid())
+  name            String
+  startTime       DateTime?
+  endTime         DateTime?
+  duration        Int?          // in minutes
+  freezeTime      DateTime?
+  thawTime        DateTime?
+  finalizationTime DateTime?
+  contestType     ContestType   @default(ICPC)
+  scoringModel    ScoringModel  @default(ACM)
+  penaltyTime     Int           @default(20) // in minutes
+  scoreboardFreeze Boolean      @default(false)
+  status          ContestStatus @default(NOT_STARTED)
+  multiSiteMode   MultiSiteMode @default(SINGLE_SITE)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  problems       Problem[]
+  languages      ContestLanguage[]
+  submissions    Submission[]
+  clarifications Clarification[]
+  announcements  Announcement[]
+  scores         Score[]
+  awards         Award[]
+  events         Event[]
+  
+  @@map("contests")
+}
+
+enum ContestType {
+  ACM
+  OI
+  ICPC
+}
+
+enum ScoringModel {
+  ACM
+  IOI
+  ICPC
+}
+
+enum ContestStatus {
+  NOT_STARTED
+  RUNNING
+  PAUSED
+  ENDED
+  FINALIZED
+}
+
+enum MultiSiteMode {
+  SINGLE_SITE
+  TIGHTLY_COUPLED
+  LOOSELY_COUPLED
+}
+
+model Language {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  extensions      String[] 
+  compilerCommand String?
+  runnerCommand   String?
+  entryPointRequired Boolean @default(false)
+  defaultTimeLimit   Int     @default(5000) // milliseconds
+  defaultMemoryLimit Int     @default(256)  // MB
+  compileFlags    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  contests    ContestLanguage[]
+  submissions Submission[]
+  
+  @@map("languages")
+}
+
+model ContestLanguage {
+  id         String   @id @default(uuid())
+  contestId  String
+  languageId String
+  enabled    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  
+  contest  Contest  @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  language Language @relation(fields: [languageId], references: [id])
+  
+  @@unique([contestId, languageId])
+  @@map("contest_languages")
+}
+
+model Problem {
+  id               String   @id @default(uuid())
+  contestId        String
+  label            String 
+  name             String
+  title            String?
+  timeLimit        Int      @default(5000) // milliseconds
+  memoryLimit      Int      @default(256)  // MB
+  testDataCount    Int      @default(0)
+  specialJudge     Boolean  @default(false)
+  interactive      Boolean  @default(false)
+  archiveLocation  String?
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  contest     Contest      @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+  testData    TestData[]
+  files       ProblemFile[]
+  
+  @@unique([contestId, label])
+  @@map("problems")
+}
+
+model TestData {
+  id         String   @id @default(uuid())
+  problemId  String
+  inputFile  String
+  outputFile String
+  order      Int
+  createdAt  DateTime @default(now())
+  
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  
+  @@map("test_data")
+}
+
+model ProblemFile {
+  id        String   @id @default(uuid())
+  problemId String
+  filename  String
+  fileType  String
+  filePath  String
+  size      Int
+  createdAt DateTime @default(now())
+  
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  
+  @@map("problem_files")
+}
+
+model Submission {
+  id            String           @id @default(uuid())
+  teamId        String
+  contestId     String
+  problemId     String
+  languageId    String
+  siteId        String?
+  sourceCode    String
+  entryPoint    String?
+  timestamp     DateTime         @default(now())
+  contestTime   Int              
+  status        SubmissionStatus @default(QUEUED)
+  executionTime Int?             // milliseconds
+  memoryUsed    Int?             // KB
+  exitStatus    Int?
+  outputFile    String?
+  logs          String?
+  isLate        Boolean          @default(false)
+  deleted       Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  
+  team       Team        @relation(fields: [teamId], references: [id])
+  contest    Contest     @relation(fields: [contestId], references: [id])
+  problem    Problem     @relation(fields: [problemId], references: [id])
+  language   Language    @relation(fields: [languageId], references: [id])
+  site       Site?       @relation(fields: [siteId], references: [id])
+  judgements Judgement[]
+  files      SubmissionFile[]
+  
+  @@index([contestId, teamId])
+  @@index([contestId, problemId])
+  @@map("submissions")
+}
+
+enum SubmissionStatus {
+  QUEUED
+  COMPILING
+  RUNNING
+  JUDGED
+  COMPILE_ERROR
+  RUNTIME_ERROR
+  TIME_LIMIT
+  MEMORY_LIMIT
+  WRONG_ANSWER
+  ACCEPTED
+  ERROR
+  LATE
+  DELETED
+}
+
+model Judgement {
+  id              String      @id @default(uuid())
+  submissionId    String
+  verdict         Verdict
+  startTime       DateTime    @default(now())
+  endTime         DateTime?
+  runTime         Int?        // milliseconds
+  runMemory       Int?        // KB
+  comment         String?
+  testCase        Int?
+  testcasesPassed Int?        
+  testcasesTotal  Int?        
+  createdAt       DateTime    @default(now())
+  
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  
+  @@map("judgements")
+}
+
+enum Verdict {
+  ACCEPTED
+  WRONG_ANSWER
+  TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
+  RUNTIME_ERROR
+  COMPILATION_ERROR
+  PRESENTATION_ERROR
+  OUTPUT_LIMIT_EXCEEDED
+  SECURITY_VIOLATION
+  JUDGING_ERROR
+  PENDING
+}
+
+model SubmissionFile {
+  id           String   @id @default(uuid())
+  submissionId String
+  filename     String
+  fileType     String
+  filePath     String
+  size         Int
+  createdAt    DateTime @default(now())
+  
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  
+  @@map("submission_files")
+}
+
+model Score {
+  id                 String   @id @default(uuid())
+  teamId             String
+  contestId          String
+  problemsSolved     Int      @default(0)
+  penaltyTime        Int      @default(0) // minutes
+  lastCorrectTime    DateTime?
+  rankingPosition    Int?
+  problemBreakdown   Json     // { problemId: { attempts: number, firstCorrectTime: DateTime, penalty: number } }
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  
+  team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  
+  @@unique([teamId, contestId])
+  @@map("scores")
+}
+
+model Clarification {
+  id               String              @id @default(uuid())
+  contestId        String
+  teamId           String?
+  questionText     String
+  answerText       String?
+  timestampSubmitted DateTime          @default(now())
+  timestampAnswered  DateTime?
+  status           ClarificationStatus @default(PENDING)
+  isPublic         Boolean             @default(false)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  team    Team?   @relation("TeamClarifications", fields: [teamId], references: [id])
+  
+  @@map("clarifications")
+}
+
+enum ClarificationStatus {
+  PENDING
+  ANSWERED
+  REJECTED
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  contestId String
+  subject   String
+  body      String
+  fromUser  String?
+  toTeam    String?
+  toSite    String?
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  
+  @@map("announcements")
+}
+
+model Event {
+  id        String    @id @default(uuid())
+  contestId String?
+  type      EventType
+  data      Json
+  timestamp DateTime  @default(now())
+  
+  contest Contest? @relation(fields: [contestId], references: [id])
+  
+  @@index([contestId, timestamp])
+  @@map("events")
+}
+
+enum EventType {
+  SUBMISSION
+  JUDGEMENT
+  CLARIFICATION
+  SCOREBOARD_UPDATE
+  SITE_CONNECTED
+  SITE_DISCONNECTED
+  CONTEST_STARTED
+  CONTEST_PAUSED
+  CONTEST_RESUMED
+  CONTEST_ENDED
+  CONTEST_FINALIZED
+  PROBLEM_ADDED
+  TEAM_REGISTERED
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  changes   Json?
+  ipAddress String?
+  timestamp DateTime @default(now())
+  
+  user User? @relation(fields: [userId], references: [id])
+  
+  @@index([timestamp])
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+model Award {
+  id          String   @id @default(uuid())
+  contestId   String
+  name        String
+  description String?
+  citation    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  contest Contest     @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  teams   TeamAward[]
+  
+  @@map("awards")
+}
+
+model TeamAward {
+  id        String   @id @default(uuid())
+  teamId    String
+  awardId   String
+  createdAt DateTime @default(now())
+  
+  team  Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  award Award @relation(fields: [awardId], references: [id], onDelete: Cascade)
+  
+  @@unique([teamId, awardId])
+  @@map("team_awards")
+}
+
+model Configuration {
+  id        String   @id @default(uuid())
+  scope     ConfigScope
+  scopeId   String?  // contestId, siteId, or userId
+  key       String
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([scope, scopeId, key])
+  @@map("configurations")
+}
+
+enum ConfigScope {
+  GLOBAL
+  CONTEST
+  SITE
+  USER
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  message   String
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+model Webhook {
+  id            String   @id @default(uuid())
+  url           String
+  contestId     String?
+  eventTypes    String[] 
+  secret        String?
+  active        Boolean  @default(true)
+  lastTriggered DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("webhooks")
+}
