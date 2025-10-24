@@ -153,13 +153,6 @@ async function main() {
       label: 'A',
       name: 'Problem a',
       title: 'Problem a title',
-      description: 'Problem a description',
-      inputSpec: 'Some extra input stuff, optional',
-      outputSpec: 'Some extra output stuff, optional',
-      sampleInput: '',
-      sampleOutput: '',
-      tags: ['easy', 'math'],
-      difficulty: 1,
       timeLimit: 1000,
       memoryLimit: 256,
       active: true,
@@ -167,33 +160,10 @@ async function main() {
     {
       contestId: contest.id,
       label: 'B',
-      name: 'Sorting Problem',
-      title: 'Sort Numbers',
-      description: 'Sort N integers in ascending order.',
-      inputSpec: 'First line: N (1 ≤ N ≤ 10^5)\nSecond line: N integers',
-      outputSpec: 'N integers in ascending order',
-      sampleInput: '5\n5 2 8 1 9',
-      sampleOutput: '1 2 5 8 9',
-      tags: ['easy', 'sorting'],
-      difficulty: 2,
+      name: 'Problem B',
+      title: 'Problem b title',
       timeLimit: 2000,
       memoryLimit: 256,
-      active: true,
-    },
-    {
-      contestId: contest.id,
-      label: 'C',
-      name: 'Graph Traversal',
-      title: 'Find Shortest Path',
-      description: 'Find the shortest path in a graph using BFS.',
-      inputSpec: 'Graph edges and start/end nodes',
-      outputSpec: 'Shortest distance or -1 if no path exists',
-      sampleInput: '4 4\n1 2\n2 3\n3 4\n1 4\n1 4',
-      sampleOutput: '1',
-      tags: ['medium', 'graph', 'bfs'],
-      difficulty: 5,
-      timeLimit: 3000,
-      memoryLimit: 512,
       active: true,
     },
   ];
@@ -220,15 +190,12 @@ async function main() {
           {
             name: 'Abhay Godavarthy',
             userId: teamUser.id,
-            role: 'Contestant',
           },
           {
             name: 'Eren Tor',
-            role: 'Contestant',
           },
           {
             name: 'Charlie Brown',
-            role: 'Contestant',
           },
         ],
       },
@@ -275,15 +242,12 @@ async function main() {
     });
   }
   
-  console.log('\n═══════════════════════════════════════════');
-  console.log('Database seeded successfully!');
-  console.log('═══════════════════════════════════════════');
-  console.log('\nTest Credentials:');
-  console.log('─────────────────────────────────────────');
+  console.log('\n');
+  console.log('\nDefault Creds:');
+  console.log('\n');
   console.log('Admin:  username: admin  | password: admin123');
   console.log('Judge:  username: judge  | password: judge123');
   console.log('Team:   username: team1  | password: team123');
-  console.log('─────────────────────────────────────────');
   console.log('\n');
 }
 
