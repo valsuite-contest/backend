@@ -3,6 +3,8 @@ import { ContestController } from '../controllers/contestController';
 import { SubmissionController } from '../controllers/submissionController';
 import { JudgementController } from '../controllers/judgementController';
 import { ProblemController } from '../controllers/problemController';
+import { ClarificationController } from '../controllers/clarificationController';
+import { AnnouncementController } from '../controllers/announcementController';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
@@ -10,6 +12,8 @@ const contestController = new ContestController();
 const submissionController = new SubmissionController();
 const judgementController = new JudgementController();
 const problemController = new ProblemController();
+const clarificationController = new ClarificationController();
+const announcementController = new AnnouncementController();
 
 router.get('/', authenticate, (req, res, next) => contestController.list(req, res, next));
 router.get('/:contestId', authenticate, (req, res, next) => contestController.get(req, res, next));
@@ -95,6 +99,36 @@ router.post('/:contestId/problems/:problemId/testdata', authenticate, authorize(
 );
 router.delete('/:contestId/problems/:problemId/testdata/:testDataId', authenticate, authorize('ADMIN'), (req, res, next) => 
   problemController.deleteTestData(req, res, next)
+);
+
+
+router.get('/:contestId/clarifications', authenticate, (req, res, next) =>
+  clarificationController.list(req, res, next)
+);
+router.get('/:contestId/clarifications/:clarificationId', authenticate, (req, res, next) =>
+  clarificationController.get(req, res, next)
+);
+router.post('/:contestId/clarifications', authenticate, authorize('TEAM'), (req, res, next) =>
+  clarificationController.create(req, res, next)
+);
+router.patch('/:contestId/clarifications/:clarificationId', authenticate, authorize('ADMIN', 'JUDGE'), (req, res, next) =>
+  clarificationController.update(req, res, next)
+);
+
+router.get('/:contestId/announcements', authenticate, (req, res, next) =>
+  announcementController.list(req, res, next)
+);
+router.get('/:contestId/announcements/:announcementId', authenticate, (req, res, next) =>
+  announcementController.get(req, res, next)
+);
+router.post('/:contestId/announcements', authenticate, authorize('ADMIN', 'JUDGE'), (req, res, next) =>
+  announcementController.create(req, res, next)
+);
+router.patch('/:contestId/announcements/:announcementId', authenticate, authorize('ADMIN', 'JUDGE'), (req, res, next) =>
+  announcementController.update(req, res, next)
+);
+router.delete('/:contestId/announcements/:announcementId', authenticate, authorize('ADMIN', 'JUDGE'), (req, res, next) =>
+  announcementController.delete(req, res, next)
 );
 
 export { router as contestRouter };

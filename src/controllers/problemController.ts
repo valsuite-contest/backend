@@ -2,6 +2,8 @@ import { Response, NextFunction } from 'express';
 import prisma from '../utils/prisma';
 import { HttpError } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
+import { validateProblemLabel, validateTimeLimit, validateMemoryLimit } from '../middleware/validation';
+
 
 export class ProblemController {
   async list(req: AuthRequest, res: Response, next: NextFunction) {
@@ -92,6 +94,18 @@ export class ProblemController {
 
       if (!label || !name) {
         throw new HttpError(400, 'Label and name are required');
+      }
+      
+      if (!validateProblemLabel(label)) {
+        throw new HttpError(400, 'Invalid problem label format');
+      }
+
+      if (timeLimit && !validateTimeLimit(timeLimit)) {
+        throw new HttpError(400, 'Time limit must be between 1 and 60000ms');
+      }
+
+      if (memoryLimit && !validateMemoryLimit(memoryLimit)) {
+        throw new HttpError(400, 'Memory limit must be between 1 and 2048MB');
       }
 
       const contest = await prisma.contest.findUnique({

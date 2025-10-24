@@ -4,6 +4,9 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { errorHandler } from './middleware/errorHandler';
+import { securityHeaders, corsConfig } from './middleware/security';
+import { sanitizeBody } from './middleware/validation';
+import { apiLimiter, authLimiter, submissionLimiter, clarificationLimiter } from './middleware/rateLimiter';
 import { authRouter } from './routes/auth';
 import { userRouter } from './routes/users';
 import { teamRouter } from './routes/teams';
@@ -27,25 +30,28 @@ const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(helmet());
-app.use(cors());
+app.use(securityHeaders);
+app.use(cors(corsConfig));
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(sanitizeBody);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/api/auth', authRouter);
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/users', userRouter);
 app.use('/api/teams', teamRouter);
 app.use('/api/sites', siteRouter);
 app.use('/api/contests', contestRouter);
 app.use('/api/languages', languageRouter);
 app.use('/api/problems', problemRouter);
-app.use('/api/submissions', submissionRouter);
+app.use('/api/submissions', submissionLimiter, submissionRouter);
 app.use('/api/scoreboard', scoreboardRouter);
-app.use('/api/clarifications', clarificationRouter);
+app.use('/api/clarifications', clarificationLimiter, clarificationRouter);
 app.use('/api/announcements', announcementRouter);
 app.use('/api/events', eventRouter);
 app.use('/api/webhooks', webhookRouter);

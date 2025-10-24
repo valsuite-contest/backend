@@ -4,6 +4,7 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import prisma from '../utils/prisma';
 import { HttpError } from '../middleware/errorHandler';
 import { AuthRequest } from '../middleware/auth';
+import { validateUsername, validatePassword } from '../middleware/validation';
 
 export class AuthController {
   async login(req: Request, res: Response, next: NextFunction) {
@@ -12,6 +13,14 @@ export class AuthController {
 
       if (!username || !password) {
         throw new HttpError(400, 'Username and password are required');
+      }
+      
+      if (!validateUsername(username)) {
+        throw new HttpError(400, 'Invalid username format');
+      }
+
+      if (!validatePassword(password)) {
+        throw new HttpError(400, 'Invalid password format');
       }
 
       const user = await prisma.user.findUnique({
